@@ -12,12 +12,12 @@ public class Wire : MonoBehaviour
     public enum State { off, on }
 
     [SerializeField] private Wire[] connectedWires;
-    [SerializeField] private Collider2D[] colliders;
+    [SerializeField] private BoxCollider2D[] colliders;
     [SerializeField] private SpriteRenderer spriteRenderer;
 
     public State myState;
 
-    [SerializeField] private Collider2D[] touchedColliders;
+    [SerializeField] private BoxCollider2D[] touchedColliders;
 
     public static Color[] wireColors = {
         new Color(0x88 / 255f, 0f, 0f),
@@ -35,19 +35,14 @@ public class Wire : MonoBehaviour
     {
         spriteRenderer = GetComponent<SpriteRenderer>();
 
-        colliders = GetComponents<Collider2D>();
+        colliders = GetComponents<BoxCollider2D>();
         connectedWires = new Wire[colliders.Length];
 
-        touchedColliders = new Collider2D[colliders.Length];
+        touchedColliders = new BoxCollider2D[colliders.Length];
 
         #region Get Connected Wires
 
-        for (int i = 0; i < colliders.Length; i++)
-        {
-            colliders[i].OverlapCollider(WIRE_FILTER, touchedColliders);
-
-            if(touchedColliders[0] != null) connectedWires[i] = touchedColliders[0].gameObject.GetComponent<Wire>();
-        }
+        
 
         #endregion
 
@@ -57,9 +52,20 @@ public class Wire : MonoBehaviour
         wireList.Add(this);
     }
 
-    [RuntimeInitializeOnLoadMethod]
-    private static void GroupWires()
+    private void findSiblings()
     {
+        for (int i = 0; i < colliders.Length; i++)
+        {
+            colliders[i].OverlapCollider(WIRE_FILTER, touchedColliders);
+
+            if (touchedColliders[0] != null) connectedWires[i] = touchedColliders[0].gameObject.GetComponent<Wire>();
+        }
+    }
+
+    public static void GroupWires()
+    {
+        wireList.ForEach(wire => { wire.findSiblings(); });
+
         Wire currentWire;
         List<Wire[]> tempWireGroups = new List<Wire[]>();
 
@@ -74,6 +80,8 @@ public class Wire : MonoBehaviour
             tempWireGroups.Add(tempWireList.ToArray());
         }
         wireGroups = tempWireGroups.ToArray();
+
+        foreach (var group in wireGroups) foreach (var wire in group) Debug.Log(wire);
     }
 
     private static void ConnectWires(List<Wire> list, Wire wire, ref int location)
@@ -84,10 +92,22 @@ public class Wire : MonoBehaviour
         wire.location = location;
         wireList.Remove(wire);
 
+        //Debug.Log(wire.getSiblingDebug());
+
         foreach (Wire sibling in wire.connectedWires)
         {
             ConnectWires(list, sibling, ref location);
         }
+    }
+
+    private string getSiblingDebug()
+    {
+        string s = this.name + ": ";
+        foreach (Wire sibling in this.connectedWires)
+        {
+            s += sibling.name + " ";
+        }
+        return s;
     }
 
     // Update is called once per frame
