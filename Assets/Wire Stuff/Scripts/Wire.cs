@@ -1,6 +1,8 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Assertions.Must;
 using static PresetContactFilters;
@@ -22,8 +24,12 @@ public class Wire : MonoBehaviour
         new Color(1f, 0.5f, 0.5f)
     };
 
-    public static List<Wire> wireList;
-    public static List<LinkedList<Wire>> wireGroups;
+    public static List<Wire> wireList = new List<Wire>();
+    public static Wire[][] wireGroups;
+    public static int wireCount = 0;
+
+    private int id = 0;
+    private int location = 0;
 
     private void Awake()
     {
@@ -40,18 +46,48 @@ public class Wire : MonoBehaviour
         {
             colliders[i].OverlapCollider(WIRE_FILTER, touchedColliders);
 
-            connectedWires[i] = touchedColliders[0].gameObject.GetComponent<Wire>();
+            if(touchedColliders[0] != null) connectedWires[i] = touchedColliders[0].gameObject.GetComponent<Wire>();
         }
 
         #endregion
 
+        id = wireCount++;
+        gameObject.name = "wire " + id.ToString();
+
         wireList.Add(this);
     }
 
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    [RuntimeInitializeOnLoadMethod]
     private static void GroupWires()
     {
-        Debug.Log(wireList.ToString());
+        Wire currentWire;
+        List<Wire[]> tempWireGroups = new List<Wire[]>();
+
+        for (int i = 0; wireList.Count > 0; i++)
+        {
+            List<Wire> tempWireList = new List<Wire>();
+
+            currentWire = wireList[wireList.Count - 1];
+
+            ConnectWires(tempWireList, currentWire, ref i);
+            
+            tempWireGroups.Add(tempWireList.ToArray());
+        }
+        wireGroups = tempWireGroups.ToArray();
+    }
+
+    private static void ConnectWires(List<Wire> list, Wire wire, ref int location)
+    {
+        if (!wireList.Contains(wire)) return;
+
+        list.Add(wire);
+        wire.location = location;
+        wireList.Remove(wire);
+
+        foreach (Wire sibling in wire.connectedWires)
+        {
+            ConnectWires(list, sibling, ref location);
+        }
     }
 
     // Update is called once per frame
@@ -64,6 +100,14 @@ public class Wire : MonoBehaviour
         #endregion
 
         
+    }
+
+    public void SetGroupState(State state)
+    {
+        foreach (Wire wire in wireGroups[location])
+        {
+            wire.SetState(state);
+        }
     }
 
     public void SetState(State state, Wire origin = null)

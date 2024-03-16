@@ -23,7 +23,7 @@ public class Torch : MonoBehaviour
     {
         foreach (var child in connectedWires)
         {
-            child.SetState(state);
+            child.SetGroupState(state);
         }
     }
 }
